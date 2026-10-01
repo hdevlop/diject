@@ -1,0 +1,51 @@
+{
+  "name": "diject",
+  "version": "0.1.9",
+  "description": "Lightweight TypeScript DI container with decorators, scopes, metadata queries, and AsyncLocalStorage support.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": ["dist"],
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "npm run typecheck && tsup",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "bench": "bun bench/container.bench.ts",
+    "clean": "rimraf dist tsconfig.tsbuildinfo"
+  },
+  "keywords": [
+    "di",
+    "dependency-injection",
+    "ioc",
+    "typescript",
+    "decorators",
+    "meta",
+    "container",
+    "metadata",
+    "reflect-metadata",
+    "async-local-storage",
+    "als"
+  ],
+  "author": "Hicham Jebara",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.3",
+    "rimraf": "^6.0.1"
+  },
+  "peerDependencies": {
+    "reflect-metadata": "^0.2.0"
+  }
+}
