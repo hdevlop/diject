@@ -1,6 +1,6 @@
 {
   "name": "diject",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Lightweight TypeScript DI container with decorators, scopes, metadata queries, and AsyncLocalStorage support.",
   "type": "module",
   "engines": {
