@@ -67,11 +67,22 @@ export class Resolver {
    }
 
    getInjectionsFor<T>(type: string, target: Constructor, methodName?: string): T[] {
-      return this.getInjections<T & { target?: Constructor; methodName?: string }>(type)
-         .filter(injection =>
-            injection.target === target &&
-            (methodName === undefined || injection.methodName === methodName)
-         ) as T[];
+      // Filter before merging: global injectors call this on every class
+      // build, and most injections of a type belong to other targets.
+      const result: T[] = [];
+      for (const token of this.container.find({ type })) {
+         const value = this.registry.get(token);
+         if (this.injectionField(token, value, 'target') !== target) continue;
+         if (methodName !== undefined && this.injectionField(token, value, 'methodName') !== methodName) continue;
+         result.push({ ...value, ...this.container.getMeta(token) } as T);
+      }
+      return result;
+   }
+
+   /** Field as `{ ...value, ...meta }` would expose it: metadata wins, then own enumerable props. */
+   private injectionField(token: Token, value: any, key: string): any {
+      if (this.container.hasMeta(token, key)) return this.container.getMeta(token, key);
+      return value != null && Object.prototype.propertyIsEnumerable.call(value, key) ? value[key] : undefined;
    }
 
 
@@ -109,8 +120,12 @@ export class Resolver {
       // already fetched the entry can pass it to skip the first lookup.
       if (!isAliasEntry(first)) return token;
 
-      // Slow path (actual alias): walk the chain with a cycle guard.
+      // One-hop alias (the common alias shape): the target is not itself an
+      // alias, so there is no chain to walk and no cycle possible.
       let current: Token = first.target;
+      if (!isAliasEntry(this.registry.get(current))) return current;
+
+      // Slow path (alias chain): walk it with a cycle guard.
       const seen = new Set<Token>([token]);
       // eslint-disable-next-line no-constant-condition
       while (true) {

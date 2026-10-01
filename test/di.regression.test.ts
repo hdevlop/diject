@@ -64,6 +64,26 @@ describe('review regressions', () => {
       expect(c.resolver.hasInjection('transaction', FirstService, 'missing')).toBe(false);
    });
 
+   test('getInjectionsFor matches metadata overrides of target and methodName', () => {
+      class Original {}
+      class Moved {}
+      const c = new Container();
+
+      const token = c.setInjection({
+         type: 'transaction',
+         target: Original,
+         methodName: 'execute',
+         marker: 'moved',
+      });
+      c.setMeta(token, { target: Moved, methodName: 'run' });
+
+      expect(c.getInjectionsFor<any>('transaction', Original, 'execute')).toEqual([]);
+      const [injection] = c.getInjectionsFor<any>('transaction', Moved, 'run');
+      expect(injection.marker).toBe('moved');
+      expect(injection.target).toBe(Moved);
+      expect(injection.methodName).toBe('run');
+   });
+
    test('concurrent transient resolutions are independent', async () => {
       class Transient {}
       const c = new Container();

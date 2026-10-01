@@ -142,6 +142,24 @@ async function main(): Promise<void> {
       });
    }, 200_000);
 
+   // 6. Transient build under a global injector that queries injections per
+   //    build (najm's TransactionService shape), 200 non-matching registrations.
+   const ic = Container.create();
+   @Service(Scope.TRANSIENT)
+   class TransientSvc { }
+   ic.set(TransientSvc);
+   for (let i = 0; i < 200; i++) {
+      ic.setInjection({ type: "transaction", target: class Other { }, methodName: "m" + i });
+   }
+   ic.use({
+      name: "Transaction",
+      global: true,
+      inject: (_instance: any, ctor: any) => { ic.getInjectionsFor("transaction", ctor); },
+   });
+   await benchAsync("resolve(transient) + global injector, 200 injections", async () => {
+      await ic.resolve(TransientSvc);
+   }, 50_000);
+
    report();
 }
 
