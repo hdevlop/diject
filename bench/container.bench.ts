@@ -142,7 +142,22 @@ async function main(): Promise<void> {
       });
    }, 200_000);
 
-   // 6. Transient build under a global injector that queries injections per
+   // 6. Plain builds: the per-instance creation cost request/transient
+   //    providers pay (async layers, metadata reads, lifecycle checks).
+   @Service(Scope.TRANSIENT)
+   class Bare { }
+   @Service(Scope.TRANSIENT)
+   class WithDeps { constructor(public a: SingletonSvc, public b: SingletonSvc) { } }
+   c.set(Bare);
+   c.set(WithDeps);
+   await benchAsync("resolve(transient) 0 deps", async () => {
+      await c.resolve(Bare);
+   }, 200_000);
+   await benchAsync("resolve(transient) 2 singleton deps", async () => {
+      await c.resolve(WithDeps);
+   }, 200_000);
+
+   // 7. Transient build under a global injector that queries injections per
    //    build (najm's TransactionService shape), 200 non-matching registrations.
    const ic = Container.create();
    @Service(Scope.TRANSIENT)

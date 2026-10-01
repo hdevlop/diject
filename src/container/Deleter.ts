@@ -31,6 +31,13 @@ export class Deleter {
          return;
       }
 
+      // Fast path: nothing in flight and no onDestroy hooks means there is
+      // nothing to wait for, so drop the maps without the closing window.
+      if (this.canCleanupSync(effectiveRequestId)) {
+         this.clearRequestMaps(effectiveRequestId);
+         return;
+      }
+
       this.container.closingRequests.add(effectiveRequestId);
       try {
          await this.settleRequestPromises(effectiveRequestId);
@@ -39,6 +46,17 @@ export class Deleter {
       } finally {
          this.container.closingRequests.delete(effectiveRequestId);
       }
+   }
+
+   private canCleanupSync(requestId: string): boolean {
+      if (this.requestPromises.get(requestId)?.size) return false;
+      const scopedInstances = this.requestScoped.get(requestId);
+      if (scopedInstances) {
+         for (const instance of scopedInstances.values()) {
+            if (hasOnDestroy(instance)) return false;
+         }
+      }
+      return true;
    }
 
    private async settleRequestPromises(requestId: string): Promise<void> {

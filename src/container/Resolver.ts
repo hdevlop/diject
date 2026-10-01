@@ -236,10 +236,12 @@ export class Resolver {
    // ASYNC RESOLVE - Use during boot() or for request-scoped
    // ============================================
 
-   async resolve<T>(token: string): Promise<T>;
-   async resolve<T>(token: symbol): Promise<T>;
-   async resolve<T>(token: Constructor<T>, requestId?: string): Promise<T>;
-   async resolve<T>(token: Token, requestId?: string): Promise<T> {
+   resolve<T>(token: string): Promise<T>;
+   resolve<T>(token: symbol): Promise<T>;
+   resolve<T>(token: Constructor<T>, requestId?: string): Promise<T>;
+   resolve<T>(token: Token, requestId?: string): Promise<T> {
+      // Not async: resolveInContext is, so failures still surface as
+      // rejections, without an extra wrapper promise per resolution.
       return this.resolveInContext<T>(token, requestId, this.currentContext());
    }
 
@@ -403,7 +405,8 @@ export class Resolver {
    ): Promise<T> {
       try {
          const instance = await entry.factory(requestId);
-         await this.init(instance);
+         // init() is a no-op without an onInit hook; skip its async frame.
+         if (hasOnInit(instance)) await this.init(instance);
          this.cache(token, entry, instance, requestId);
          return instance;
       } finally {

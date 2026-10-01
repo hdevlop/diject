@@ -219,6 +219,40 @@ describe('review regressions', () => {
       expect(() => c.get(SlowRequest, 'cleanup-race')).toThrow();
    });
 
+   test('cleanup waits for in-flight request providers without onDestroy', async () => {
+      class SlowPlain {}
+
+      const c = new Container();
+      c.set(SlowPlain, {
+         scope: Scope.REQUEST,
+         factory: async () => {
+            await Bun.sleep(15);
+            return new SlowPlain();
+         },
+      });
+
+      const pending = c.resolve(SlowPlain, 'plain-race');
+      await Bun.sleep(1);
+      await c.cleanupReq('plain-race');
+      await pending;
+
+      // Clearing before the build settled would let it re-create the cache.
+      expect(c.hasRequestScope('plain-race')).toBe(false);
+   });
+
+   test('cleanup without hooks or in-flight builds frees the request scope', async () => {
+      class Plain {}
+
+      const c = new Container();
+      c.set(Plain, Scope.REQUEST);
+
+      const first = await c.resolve(Plain, 'sync-clean');
+      await c.cleanupReq('sync-clean');
+
+      expect(c.hasRequestScope('sync-clean')).toBe(false);
+      expect(await c.resolve(Plain, 'sync-clean')).not.toBe(first);
+   });
+
    test('delete waits for an in-flight singleton and does not resurrect it', async () => {
       let destroyCalls = 0;
       class SlowSingleton {

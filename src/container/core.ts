@@ -136,12 +136,14 @@ export class Container {
    // ASYNC RESOLVE - Use during boot() or lazy init
    // ============================================
 
-   async resolve<T>(token: AlsToken<T>): Promise<T | undefined>;
-   async resolve<T>(token: Token | Constructor<T>, requestId?: string): Promise<T>;
-   async resolve<T = any>(token: string): Promise<T>;
-   async resolve<T = any>(token: symbol): Promise<T>;
-   async resolve<T>(token: Token, requestId?: string): Promise<T> {
-      return await this.resolver.resolve(token as any, requestId);
+   resolve<T>(token: AlsToken<T>): Promise<T | undefined>;
+   resolve<T>(token: Token | Constructor<T>, requestId?: string): Promise<T>;
+   resolve<T = any>(token: string): Promise<T>;
+   resolve<T = any>(token: symbol): Promise<T>;
+   resolve<T>(token: Token, requestId?: string): Promise<T> {
+      // Forward the resolver's promise as-is: an async wrapper here would add
+      // a promise and microtask hops to every (nested) resolution.
+      return this.resolver.resolve(token as any, requestId);
    }
 
    push<T>(token: Token, ...items: T[]): this {
