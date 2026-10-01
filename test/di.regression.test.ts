@@ -257,6 +257,62 @@ describe('review regressions', () => {
       expect(attempts).toBe(2);
    });
 
+   for (const token of ['flaky', Symbol('flaky')]) {
+      test(`a ${typeof token} named factory retries after a synchronous failure and shares each attempt`, async () => {
+         const c = new Container();
+         const failure = new Error('first attempt fails');
+         let attempts = 0;
+         let initCalls = 0;
+         const instance = {
+            ready: false,
+            async onInit() {
+               await Promise.resolve();
+               this.ready = true;
+               initCalls++;
+            },
+         };
+         c.set(token, () => {
+            attempts++;
+            if (attempts === 1) throw failure;
+            return instance;
+         });
+
+         const failures = await Promise.allSettled([c.resolve(token), c.resolve(token)]);
+         expect(failures).toEqual([
+            { status: 'rejected', reason: failure },
+            { status: 'rejected', reason: failure },
+         ]);
+         expect(attempts).toBe(1);
+
+         const [first, second] = await Promise.all([c.resolve(token), c.resolve(token)]);
+         expect(first).toBe(instance);
+         expect(second).toBe(instance);
+         expect(instance.ready).toBe(true);
+         expect(initCalls).toBe(1);
+         expect(attempts).toBe(2);
+         expect(c.get(token)).toBe(instance);
+         expect(await c.resolve(token)).toBe(instance);
+         expect(attempts).toBe(2);
+      });
+   }
+
+   test('delete started by a named factory waits for that build and destroys it', async () => {
+      const c = new Container();
+      let deletion: Promise<void> | undefined;
+      let destroyCalls = 0;
+      const instance = { onDestroy() { destroyCalls++; } };
+      c.set('self-deleting', () => {
+         deletion = c.delete('self-deleting');
+         return instance;
+      });
+
+      expect(await c.resolve('self-deleting')).toBe(instance);
+      await deletion;
+
+      expect(destroyCalls).toBe(1);
+      expect(c.has('self-deleting')).toBe(false);
+   });
+
    test('cleanupReq started by a constructor waits for that build', async () => {
       const c = new Container();
       let cleanup: Promise<void> | undefined;

@@ -359,6 +359,9 @@ export class Resolver {
          // and must not capture request-scoped providers.
          const promise = this.runProvider(context, token, Scope.SINGLETON, async (child) => {
             try {
+               // Publish pending before factory code can throw or start
+               // deletion, just as for class providers in createInstance().
+               await undefined;
                const instance = await value.factory();
                await this.init(instance);
                // A re-registration made while the factory ran wins.
