@@ -80,6 +80,51 @@ describe("custom property injectors", () => {
       expect(calls).toEqual(["first", "third"]);
    });
 
+   test("an injector registered during a pass runs from the next build on", async () => {
+      @Service(Scope.TRANSIENT)
+      class Target { }
+      const c = Container.create();
+      c.set(Target);
+
+      const calls: string[] = [];
+      let added = false;
+      c.use({
+         global: true,
+         inject: () => {
+            calls.push("outer");
+            if (!added) {
+               added = true;
+               c.use({ global: true, inject: () => { calls.push("late"); } });
+            }
+         },
+      });
+
+      await c.resolve(Target);
+      expect(calls).toEqual(["outer"]);
+      await c.resolve(Target);
+      expect(calls).toEqual(["outer", "outer", "late"]);
+   });
+
+   test("a thenable whose then getter throws rejects without skipping later injectors", async () => {
+      @Service(Scope.TRANSIENT)
+      class Target { }
+      const c = Container.create();
+      c.set(Target);
+
+      const calls: string[] = [];
+      c.use({
+         global: true,
+         inject: () => {
+            calls.push("first");
+            return { get then() { throw new Error("bad thenable"); } } as any;
+         },
+      });
+      c.use({ global: true, inject: () => { calls.push("second"); } });
+
+      await expect(c.resolve(Target)).rejects.toThrow("bad thenable");
+      expect(calls).toEqual(["first", "second"]);
+   });
+
    test("a failing property dependency skips injectors", async () => {
       @Service(Scope.TRANSIENT)
       class Target {

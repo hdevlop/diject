@@ -404,6 +404,10 @@ export class Resolver {
       requestId?: string
    ): Promise<T> {
       try {
+         // Yield before running provider code, so the caller publishes this
+         // build's pending promise first: a constructor or factory that
+         // starts cleanupReq()/delete() must see the build as in flight.
+         await undefined;
          const instance = await entry.factory(requestId);
          // init() is a no-op without an onInit hook; skip its async frame.
          if (hasOnInit(instance)) await this.init(instance);

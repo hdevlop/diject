@@ -240,6 +240,54 @@ describe('review regressions', () => {
       expect(c.hasRequestScope('plain-race')).toBe(false);
    });
 
+   test('a factory that throws synchronously is retried on the next resolve', async () => {
+      class Flaky {}
+      const c = new Container();
+      let attempts = 0;
+      c.set(Flaky, {
+         factory: () => {
+            attempts++;
+            if (attempts === 1) throw new Error('first attempt fails');
+            return new Flaky();
+         },
+      });
+
+      await expect(c.resolve(Flaky)).rejects.toThrow('first attempt fails');
+      expect(await c.resolve(Flaky)).toBeInstanceOf(Flaky);
+      expect(attempts).toBe(2);
+   });
+
+   test('cleanupReq started by a constructor waits for that build', async () => {
+      const c = new Container();
+      let cleanup: Promise<void> | undefined;
+      class SelfCleaning {
+         constructor() { cleanup = c.cleanupReq('ctor-clean'); }
+      }
+      c.set(SelfCleaning, Scope.REQUEST);
+
+      await c.resolve(SelfCleaning, 'ctor-clean');
+      await cleanup;
+
+      expect(c.hasRequestScope('ctor-clean')).toBe(false);
+   });
+
+   test('delete started by a constructor waits for that build and destroys it', async () => {
+      const c = new Container();
+      let destroyCalls = 0;
+      let deletion: Promise<void> | undefined;
+      class SelfDeleting {
+         constructor() { deletion = c.delete(SelfDeleting); }
+         onDestroy() { destroyCalls++; }
+      }
+      c.set(SelfDeleting);
+
+      await c.resolve(SelfDeleting);
+      await deletion;
+
+      expect(destroyCalls).toBe(1);
+      expect(c.has(SelfDeleting)).toBe(false);
+   });
+
    test('cleanup without hooks or in-flight builds frees the request scope', async () => {
       class Plain {}
 

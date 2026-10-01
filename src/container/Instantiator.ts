@@ -66,22 +66,26 @@ export class Instantiator {
    /**
     * Step 2: Run custom injectors (they handle their own tokens). Every
     * matching injector is started even if an earlier one throws; only async
-    * results (or failures) produce a promise to wait on.
+    * results (or failures) produce a promise to wait on. Injectors added
+    * during the pass (via use()) apply from the next build on.
     */
    private runInjectors(instance: any, injections: PropertyInjection[]): Promise<void> | undefined {
       let pending: Promise<unknown>[] | undefined;
+      const injectors = this.propsInject;
+      const count = injectors.length;
 
-      for (const injector of this.propsInject) {
-         let result: unknown;
+      for (let i = 0; i < count; i++) {
+         const injector = injectors[i];
          try {
             const shouldInject = injector.global === true || injector.canInject?.(instance, instance.constructor);
             if (!shouldInject) continue;
-            result = injector.inject(instance, instance.constructor, this.container.registry, injections);
+            const result: any = injector.inject(instance, instance.constructor, this.container.registry, injections);
+            // Inspecting `then` can throw (getter); it must fail like the call.
+            if (result instanceof Promise || (result != null && typeof result.then === 'function')) {
+               (pending ??= []).push(Promise.resolve(result));
+            }
          } catch (error) {
-            result = Promise.reject(error);
-         }
-         if (result instanceof Promise || (result != null && typeof (result as any).then === 'function')) {
-            (pending ??= []).push(Promise.resolve(result));
+            (pending ??= []).push(Promise.reject(error));
          }
       }
 
