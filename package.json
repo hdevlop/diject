@@ -39,6 +39,14 @@
   ],
   "author": "Hicham Jebara",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hdevlop/diject.git"
+  },
+  "homepage": "https://github.com/hdevlop/diject#readme",
+  "bugs": {
+    "url": "https://github.com/hdevlop/diject/issues"
+  },
   "devDependencies": {
     "@types/bun": "^1.3.14",
     "tsup": "^8.0.0",
